@@ -54,10 +54,10 @@ function renderWeeks(){
 }
 function normalizeWords(data){
  const arr=Array.isArray(data)?data:(data&&Array.isArray(data.words)?data.words:null);
- if(!arr||!arr.length)throw new Error('ساختار فایل باید شامل آرایه words باشد.');
+ if(!arr||!arr.length)throw new Error('فایل باید آرایه words داشته باشد یا خودش آرایه لغات باشد.');
  const cleaned=arr.map(x=>{
-   const word=typeof x==='string'?x:(x.word||x.english||x.en||'');
-   const meaning=typeof x==='string'?'':(x.meaning||x.translation||x.fa||'');
+   const word=typeof x==='string'?x:(x.word||x.english||x.en||x.term||'');
+   const meaning=typeof x==='string'?'':(x.meaning||x.translation||x.fa||x.persian||x.definition||'');
    return {word:String(word).trim(),meaning:String(meaning).trim()};
  }).filter(x=>x.word);
  if(!cleaned.length)throw new Error('هیچ کلمه معتبری در فایل پیدا نشد.');
@@ -66,6 +66,7 @@ function normalizeWords(data){
 function importFile(file,weekId){
  if(!file)return;
  const reader=new FileReader();
+ reader.onerror=()=>showToast('خواندن فایل با خطا روبه‌رو شد؛ دوباره امتحان کن.');
  reader.onload=()=>{
   try{
    const data=JSON.parse(reader.result),words=normalizeWords(data);
@@ -117,12 +118,51 @@ function flipCard(card,index){
  flipTimers.set(card,timer);
 }
 $('#weekGrid').addEventListener('click',e=>{
- const imp=e.target.closest('[data-import]'),card=e.target.closest('[data-week]');
- if(imp){e.stopPropagation();$('#globalImport').dataset.week=imp.dataset.import;$('#globalImport').click();return;}
+ const imp=e.target.closest('[data-import]');
+ const card=e.target.closest('[data-week]');
+ if(imp){
+   e.preventDefault();
+   e.stopPropagation();
+   const picker=$('#globalImport');
+   picker.dataset.week=imp.dataset.import;
+   picker.value='';
+   picker.click();
+   return;
+ }
  if(card)openWeek(card.dataset.week);
 });
-$('#weekImport').addEventListener('change',e=>{const f=e.target.files[0];if(f)importFile(f,activeWeek);e.target.value='';});
-$('#wordGrid').addEventListener('click',e=>{const card=e.target.closest('[data-word-index]');if(card)flipCard(card,Number(card.dataset.wordIndex));});
+$('#globalImportBtn').addEventListener('click',()=>{
+ if(activeWeek){
+   const picker=$('#globalImport');
+   picker.dataset.week=activeWeek;
+   picker.value='';
+   picker.click();
+ }else{
+   showToast('برای افزودن لغات، روی علامت + داخل خانه هفته موردنظر بزن.');
+ }
+});
+$('#globalImport').addEventListener('change',e=>{
+ const f=e.target.files && e.target.files[0];
+ const weekId=e.target.dataset.week;
+ if(f && weekId)importFile(f,weekId);
+ else if(f)showToast('هفته مقصد مشخص نیست؛ از علامت + همان هفته استفاده کن.');
+ e.target.value='';
+});
+$('#weekImportBtn').addEventListener('click',()=>{
+ if(!activeWeek)return;
+ const picker=$('#weekImport');
+ picker.value='';
+ picker.click();
+});
+$('#weekImport').addEventListener('change',e=>{
+ const f=e.target.files && e.target.files[0];
+ if(f && activeWeek)importFile(f,activeWeek);
+ e.target.value='';
+});
+$('#wordGrid').addEventListener('click',e=>{
+ const card=e.target.closest('[data-word-index]');
+ if(card)flipCard(card,Number(card.dataset.wordIndex));
+});
 function goHome(){$('#wordsView').hidden=true;$('#weeksView').hidden=false;activeWeek=null;}
 $('#backBtn').onclick=goHome;$('#homeBtn').onclick=goHome;
 buildWeeks();
